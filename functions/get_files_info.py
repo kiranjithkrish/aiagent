@@ -1,5 +1,6 @@
 
 import os
+from google.genai import types
 
 def is_subdir(parent, child):
     # Add separator to avoid prefix errors
@@ -10,7 +11,7 @@ def is_subdir(parent, child):
 def get_files_info(working_directory, directory="."):
     
     parent = os.path.abspath(working_directory)
-    child = os.path.abspath(directory)
+    child = os.path.abspath(os.path.join(working_directory, directory))
     
     if not os.path.isdir(child):
         return f'Error: "{directory}" is not a directory'
@@ -29,3 +30,18 @@ def get_files_info(working_directory, directory="."):
         return result_str
     except Exception as e:
         return f'Error listing files: {e}'
+    
+
+schema_get_files_info = types.FunctionDeclaration(
+    name="get_files_info",
+    description="Lists files in the specified directory along with their sizes, constrained to the working directory.",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "directory": types.Schema(
+                type=types.Type.STRING,
+                description="The directory to list files from, relative to the working directory. If not provided, lists files in the working directory itself.",
+            ),
+        },
+    ),
+)

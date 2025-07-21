@@ -1,9 +1,10 @@
 import os
 import subprocess
+from google.genai import types
 
 def format_output(output: subprocess.CompletedProcess):
     stdout = output.stdout.decode('utf-8', errors='replace') if output.stdout else ''
-    stderr = output.stderr.decode('utf-8', errors='replace') if output.stdout else ''
+    stderr = output.stderr.decode('utf-8', errors='replace') if output.stderr else ''
     parts = []
     if stdout:
         parts.append(f'STDOUT: {stdout}')
@@ -37,3 +38,24 @@ def run_python_file(working_directory, file_path, args=[]):
         
     except subprocess.CalledProcessError as e:
         return f'Error: executing Python file: {e}'
+
+
+
+schema_run_python_file = types.FunctionDeclaration(
+    name="run_python_file",
+    description="Run python file with args in the directory",
+    parameters=types.Schema(
+        type=types.Type.OBJECT,
+        properties={
+            "file_path": types.Schema(
+                type=types.Type.STRING,
+                description="The file path to run",
+            ),
+            "args": types.Schema(
+                type=types.Type.ARRAY,
+                items=types.Schema(type=types.Type.STRING),
+                description="The arguments required to run the python file"
+            )
+        },
+    ),
+)  
