@@ -1,13 +1,12 @@
 import os
-from functions.get_files_info import is_subdir
 from config import MAX_CHARS
 
 def get_file_content(working_directory, file_path):
     parent = os.path.abspath(working_directory)
-    child = os.path.abspath(file_path)
+    child = os.path.abspath(os.path.join(working_directory, file_path))
     if not os.path.isfile(child):
         return f'Error: File not found or is not a regular file: "{file_path}"'
-    if not is_subdir(parent, child):
+    if not child.startswith(parent):
         return f'Error: Cannot list "{file_path}" as it is outside the permitted working directory'
     
     try:
