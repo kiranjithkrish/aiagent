@@ -3,11 +3,13 @@ from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 import sys
+import re
 from functions.get_files_info import schema_get_files_info
 from functions.get_file_content import schema_get_file_content
 from functions.write_file import schema_write_file
 from functions.run_python import schema_run_python_file
 from functions.call_function import call_function
+from prompts import system_prompt
 
 available_functions = types.Tool(
     function_declarations=[
@@ -28,7 +30,7 @@ def print_token_usage(content_res):
     response_tokens = usage.candidates_token_count
     print(f'Prompt tokens: {prompt_tokens}')
     print(f'Response tokens:{response_tokens}')
-
+    
 
 def main():
     load_dotenv()
@@ -40,28 +42,23 @@ def main():
         print("Error: Please provide a prompt")
         sys.exit(1)
     user_prompt = " ".join(args)
+    if verbose:
+        print(f'User prompt: {user_prompt}')
     
     messages = [
         types.Content(role="user", parts=[types.Part(text=user_prompt)]),
     ]
-    if verbose:
-        print(f'User prompt: {user_prompt}')  
-    generate_content(client, messages, verbose)
+  
+    for i in range(20):
+        try:
+            final_response = generate_content(client, messages, verbose)
+            if final_response:
+                print(f"Recieved the final response {final_response}")
+                break
+        except Exception as e:
+            print(f'Error: Generate content failed with Error {e}')
 
 def generate_content(client, messages, verbose):
-    system_prompt = """
-    You are a helpful AI coding agent.
-
-    When a user asks a question or makes a request, make a function call plan. You can perform the following operations:
-
-    - List files and directories
-    - Read file contents
-    - Execute Python files with optional arguments
-    - Write or overwrite files
-
-    All paths you provide should be relative to the working directory. You do not need to specify the working directory in your function calls as it is automatically injected for security reasons.
-    """
-     
     content_res = client.models.generate_content(
                     model='gemini-2.0-flash-001', 
                     contents=messages,
@@ -70,24 +67,37 @@ def generate_content(client, messages, verbose):
                         tools=[available_functions]
                         ),
                 )
+    if content_res.candidates:
+        for variation in content_res.candidates:
+            content = variation.content
+            messages.append(content)
     if verbose:
         print_token_usage(content_res)
     
-    calls = content_res.function_calls
-    function_responses = []
-    for call in calls:
-        function_call_result = call_function(call, verbose)
-        if not function_call_result.parts[0].function_response.response:
-            raise Exception('empty function call result')
-        function_call_response = function_call_result.parts[0].function_response.response
+    if not content_res.function_calls:
         if verbose:
+            print('No function calls, return the response')
+        return content_res.text
+        
+    function_calls = content_res.function_calls
+    function_responses = []
+    for function_call_part in function_calls:
+        function_call_result = call_function(function_call_part, verbose)
+       
+        function_call_response = function_call_result.parts[0].function_response.response
+        if not function_call_response:
+            raise Exception('empty function call result')
+        if verbose:
+            print(f'Calling function {function_call_part.name}')
             print(f'-> {function_call_response}')
-        function_responses.append(function_call_response)
+        function_responses.append(function_call_result.parts[0])
+    
     if not function_responses:
         raise Exception("no function responses generated, exiting.")
-                
+    message = types.Content(role="tool", parts=function_responses)
+    messages.append(message)
         
-    
+
     
 if __name__ == "__main__":
     main()

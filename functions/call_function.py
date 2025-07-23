@@ -16,7 +16,7 @@ function_map = {
 def call_function(function_call_part, verbose=False):
     func_name = function_call_part.name
     func_args = function_call_part.args
-    func_args["working_directory"] = WORKING_DIR
+    func_args["working_directory"] = './calculator'
     if verbose:
         print(f"Calling function: {func_name}({func_args})")
     else:
@@ -32,7 +32,10 @@ def call_function(function_call_part, verbose=False):
                 )
             ],
         )
-    function_result = function(**func_args)
+    try:
+        function_result = function(**func_args)
+    except Exception as e:
+        function_result = f"Error executing {func_name}: {str(e)}"
     return types.Content(
     role="tool",
     parts=[
